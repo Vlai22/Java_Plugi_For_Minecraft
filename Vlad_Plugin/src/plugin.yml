@@ -1,0 +1,8 @@
+name: Vlad_Plugin
+main: Vlad_Plugin.main
+version: 1.0
+api-version: 1.13
+commands:
+     login:
+     registr:
+     money:
