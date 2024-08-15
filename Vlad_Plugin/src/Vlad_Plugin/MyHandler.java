@@ -7,6 +7,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -14,31 +15,27 @@ import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapCanvas;
 import org.bukkit.map.MapRenderer;
 import org.bukkit.map.MapView;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.bukkit.WorldEditPlugin;
-import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.domains.DefaultDomain;
-import com.sk89q.worldguard.internal.platform.WorldGuardPlatform;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 
 import org.bukkit.entity.Player;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.UUID;
+import java.util.Map;
 
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.enchantments.Enchantment;
 
 public class MyHandler implements Listener {
 	public static HashMap<String, Boolean> Capture_is = new HashMap<>();
@@ -69,7 +66,7 @@ public class MyHandler implements Listener {
             public void render(MapView mapView, MapCanvas mapCanvas, Player player) {
                 if (rendered) return;
             	String text = "";//создание рандомной капчи и рисовка её на карте
-            	String text_char = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
+            	String text_char = "ABCDEFGHJKLMNOPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz1234567890";
             	for(int i=0;i<3;i++) {
             		text += text_char.charAt(Capture_img.Random(0, text_char.length()));
             	}
@@ -137,9 +134,22 @@ public class MyHandler implements Listener {
 		              }
 		        }.runTask(Bukkit.getPluginManager().getPlugin("Vlad_Plugin"));
 				event.getPlayer().sendMessage("Вы ввели не верную капчу, у вас осталось " +(3-Capture_attempt.get(event.getPlayer().getName())) + " попыток!!");
+				if(Capture_attempt.get(event.getPlayer().getName()) >= 3) {
+					new BukkitRunnable() {
+			              @Override
+			              public void run() {
+			            	  event.getPlayer().kickPlayer("Вы не прошли капчу!! Вероятно вы бот!!");
+			              }
+			        }.runTask(Bukkit.getPluginManager().getPlugin("Vlad_Plugin"));
+				}
 			}
 		}else if(Capture_attempt.get(event.getPlayer().getName()) >=3) {
-			event.getPlayer().kickPlayer("Вы не прошли капчу!! Вероятно вы бот!!");
+	        new BukkitRunnable() {
+	              @Override
+	              public void run() {
+	            	  event.getPlayer().kickPlayer("Вы не прошли капчу!! Вероятно вы бот!!");
+	              }
+	        }.runTask(Bukkit.getPluginManager().getPlugin("Vlad_Plugin"));
 		}
 	}
 	@EventHandler//событие клика на какой либо объект в инветоре
@@ -153,6 +163,7 @@ public class MyHandler implements Listener {
 					ArrayList<ItemStack> array = Inventory_arrays.get(select_name);
 					if(array != null) {//проверяем не равен ли этот элемент переходу в какой либо инвентарь
 						event.getInventory().clear();//если да то очищаем нынешний и заполняем новыми элементами
+						event.setCancelled(true);
 						array.forEach((item) -> event.getInventory().addItem(item));
 					}else {//если нет то узнаем является ли данный инвентарь магазином
 						//в противном случае просто используем дефолтную логику то есть не пишем код
@@ -161,6 +172,7 @@ public class MyHandler implements Listener {
 							int price_house = 0;
 							int price_item_sale = 0;
 							int value_item_sale = 0;
+							//проверка на отсутсвие значения в хешмапах
 							if(Price_Items.containsKey(event.getCurrentItem())) {
 								price_item = Price_Items.get(event.getCurrentItem());//узнаем если выбранный элемент в таблице элементов для покупки	
 							}
@@ -173,6 +185,7 @@ public class MyHandler implements Listener {
 							if(Value_Items_Sale.containsKey(event.getCurrentItem())) {
 								value_item_sale = Value_Items_Sale.get(event.getCurrentItem());
 							}
+							//если прайс вещи не равен нулю значит её можно купить как вещь
 							if (price_item != 0) {
 								if(Scoreboard_My.objective.getScore("Topcoin:").getScore() >= price_item) {
 									event.getWhoClicked().sendMessage("Вы успешно купили вещь!!");
@@ -182,9 +195,8 @@ public class MyHandler implements Listener {
 									event.getWhoClicked().sendMessage("У вас недостаточно денег для того что бы купить данный предмет!!");
 									event.setCancelled(true);
 								}
-							}else {
-								event.getWhoClicked().sendMessage("Эта вещь не продаётся но вы можете её забрать!!");
 							}
+							//если цена дома не равна нулю то мы можешь купить данный предмет как территорию и соответсвенно аредовать
 							if(price_house != 0) {
 								if(Scoreboard_My.objective.getScore("Topcoin:").getScore() >= price_house) {
 									event.getWhoClicked().sendMessage("Вы успешно купили дом!!");
@@ -209,14 +221,69 @@ public class MyHandler implements Listener {
 										}
 									}
 									Inventory_arrays.put(event.getView().getTitle(), array2);
-									event.getWhoClicked().sendMessage(Inventory_arrays.get(event.getView().getTitle()).get(0).getType().getTranslationKey());
+									LocalDateTime now = LocalDateTime.now();
+									String now_date = String.valueOf(now.getYear()) + "-" + String.valueOf(now.getMonthValue()) + "-" + String.valueOf(now.getDayOfMonth()) + "-" + String.valueOf(now.getHour()) + "-" + String.valueOf(now.getMinute()) + "-" + String.valueOf(now.getSecond());
+									String end_date = "";
+									if(now.getMonthValue()%2 == 0) {
+										if(now.getMonthValue() != 2) {
+											if(now.getDayOfMonth() + 7 > 30) {
+												end_date = String.valueOf(now.getYear()) + "-" + String.valueOf(now.getMonthValue()+1) + "-" + String.valueOf((now.getDayOfMonth()+7)-30) + "-" + String.valueOf(now.getHour()) + "-" + String.valueOf(now.getMinute()) + "-" + String.valueOf(now.getSecond());
+											}else {
+												end_date = String.valueOf(now.getYear()) + "-" + String.valueOf(now.getMonthValue()) + "-" + String.valueOf(now.getDayOfMonth()+7) + "-" + String.valueOf(now.getHour()) + "-" + String.valueOf(now.getMinute()) + "-" + String.valueOf(now.getSecond());	
+											}
+										}else {
+											if(now.getYear()%4 == 0) {
+												if(now.getMonthValue() + 7 > 29) {
+													end_date = String.valueOf(now.getYear()) + "-" + String.valueOf(now.getMonthValue()+1) + "-" + String.valueOf((now.getDayOfMonth()+7)-29) + "-" + String.valueOf(now.getHour()) + "-" + String.valueOf(now.getMinute()) + "-" + String.valueOf(now.getSecond());
+												}else{
+													end_date = String.valueOf(now.getYear()) + "-" + String.valueOf(now.getMonthValue()) + "-" + String.valueOf(now.getDayOfMonth()+7) + "-" + String.valueOf(now.getHour()) + "-" + String.valueOf(now.getMinute()) + "-" + String.valueOf(now.getSecond());
+												}
+											}else {
+												if(now.getMonthValue() + 7 > 28) {
+													end_date = String.valueOf(now.getYear()) + "-" + String.valueOf(now.getMonthValue()+1) + "-" + String.valueOf((now.getDayOfMonth()+7)-28) + "-" + String.valueOf(now.getHour()) + "-" + String.valueOf(now.getMinute()) + "-" + String.valueOf(now.getSecond());
+												}else{
+													end_date = String.valueOf(now.getYear()) + "-" + String.valueOf(now.getMonthValue()) + "-" + String.valueOf(now.getDayOfMonth()+7) + "-" + String.valueOf(now.getHour()) + "-" + String.valueOf(now.getMinute()) + "-" + String.valueOf(now.getSecond());
+												}												
+											}
+										}
+									}else {
+										if(now.getDayOfMonth() + 7 > 31) {
+											end_date = String.valueOf(now.getYear()) + "-" + String.valueOf(now.getMonthValue()+1) + "-" + String.valueOf((now.getDayOfMonth()+7)-31) + "-" + String.valueOf(now.getHour()) + "-" + String.valueOf(now.getMinute()) + "-" + String.valueOf(now.getSecond());
+										}else {
+											end_date = String.valueOf(now.getYear()) + "-" + String.valueOf(now.getMonthValue()) + "-" + String.valueOf(now.getDayOfMonth()+7) + "-" + String.valueOf(now.getHour()) + "-" + String.valueOf(now.getMinute()) + "-" + String.valueOf(now.getSecond());	
+										}
+									}
+									Sql_DB.Insert_Update("UPDATE `houses` SET `uuid`='" + event.getWhoClicked().getUniqueId() + "',`date_sale`='" + now_date +"',`date_for_sale`='" + end_date + "',`status`='2' WHERE name = '" + event.getCurrentItem().getItemMeta().getDisplayName() + "'");
 								}else{
 									event.getWhoClicked().sendMessage("У вас недостаточно денег для того что бы купить данный дом!!");
 									event.setCancelled(true);
 								}
-							}else {
-								event.getWhoClicked().sendMessage("Эта вещь не продаётся но вы можете её забрать!!");
-							}				
+							}
+							if(price_item_sale != 0 && value_item_sale != 0) {
+								event.setCancelled(true);
+								ItemStack[] items = event.getWhoClicked().getInventory().getContents();
+								for(int i=0;i<items.length;i++) {
+									if(items[i] != null) {
+										if(items[i].getType() == event.getCurrentItem().getType()) {
+											if(items[i].getAmount() >= value_item_sale) {
+												items[i].setAmount(items[i].getAmount() - value_item_sale);
+												Sql_DB.Insert_Update("UPDATE `users` SET money = money + " + price_item_sale + " WHERE uuid = '" + event.getWhoClicked().getUniqueId() + "'");
+												Player player = (Player) event.getWhoClicked(); 
+												Scoreboard_My.Update_Scoreboard(player);
+												break;
+											}else {
+												event.getWhoClicked().sendMessage("У вас не хватает предмета для продажи!!");	
+											}
+										}
+									}
+								}
+								event.getWhoClicked().getInventory().clear();
+								for(int i=0;i<items.length;i++) {
+									if(items[i] != null) {
+										event.getWhoClicked().getInventory().setItem(i, items[i]);
+									}
+								}
+							}
 						}
 					}
 				}
@@ -253,6 +320,32 @@ public class MyHandler implements Listener {
 		}else {
 			event.getPlayer().sendMessage("Ошибка игры, пожалуйста перезагрузите игру!!");
 		}
+	}
+	@EventHandler
+	public void outGame(PlayerQuitEvent event) {
+		saveInventory(event.getPlayer());
+	}
+	public static void saveInventory(Player player) {
+		Inventory invent = player.getInventory();
+		ItemStack[] inventoryitems = invent.getContents();
+		String result = new String();
+		for(int i=0;i<inventoryitems.length;i++) {
+			if(inventoryitems[i] != null) {
+				result += "Type:" + inventoryitems[i].getType().name() + ";";
+				result += "Amount:" + String.valueOf(inventoryitems[i].getAmount()) + ";";
+				result += "Durability:" + String.valueOf(inventoryitems[i].getDurability()) + ";";
+				result += "Pos:" + String.valueOf(i) + ";";
+		        Map<Enchantment, Integer> enchantments = inventoryitems[i].getEnchantments();
+		        int j =1;
+		        for (Enchantment enchantment : enchantments.keySet()) {
+		            result += "Enchantment_Level_" + String.valueOf(j) + ":" + String.valueOf(enchantments.get(enchantment)) + ";";
+		            result += "Enchantment_" + String.valueOf(j) + ":" + enchantment.getKey().getNamespace() + ":" + enchantment.getKey().getKey() + ";";
+		            j++;
+		        }
+				result += "\n";
+			}
+		}
+		Sql_DB.Insert_Update("UPDATE `users` SET `inventory`='" + result + "' WHERE UUID = '" + player.getUniqueId() + "'");
 	}
 }
 

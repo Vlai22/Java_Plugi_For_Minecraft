@@ -49,7 +49,7 @@ public class Sql_DB {
             return null;
         }
 	}
-	public static ArrayList<ArrayList<String>> Select_Array(String query) {
+	public static ArrayList<ArrayList<String>> Select_Arrays(String query) {
         ResultSet resultSet = null;
         try {
 			Class.forName("com.mysql.jdbc.Driver");
@@ -81,6 +81,43 @@ public class Sql_DB {
                 		}
                 	}
                 	result.add(array);
+                }
+                return result;
+        }
+        catch (SQLException e) {
+                e.printStackTrace();
+                System.out.print("Error");
+                return null;
+        }
+	}
+	public static ArrayList<String> Select_Array(String query) {
+        ResultSet resultSet = null;
+        try {
+			Class.forName("com.mysql.jdbc.Driver");
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}		
+        try (Connection connection = DriverManager.getConnection(url, name, pass)) {
+                Statement statement = connection.createStatement();
+                resultSet = statement.executeQuery(query);
+                ArrayList<String> result = new ArrayList<>();
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                for(int i=1;i<=metaData.getColumnCount();i++) {
+                	String type = metaData.getColumnTypeName(i);
+                	switch(type) {
+                		case "BIGINT":
+                			result.add(String.valueOf(resultSet.getBigDecimal(i)));
+                			break;
+                		case "INT":
+                			result.add(String.valueOf(resultSet.getInt(i)));
+                			break;
+                		case "TEXT":
+                			result.add(resultSet.getString(i));
+                			break;
+                		default:
+                			System.out.print("Error type Sql_Array_Select");
+                			break;
+                	}
                 }
                 return result;
         }

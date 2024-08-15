@@ -5,4 +5,8 @@ api-version: 1.13
 commands:
      login:
      registr:
-     money:
+     createspawn:
+     removespawn:
+     tpspawn:
+     spawnlist:
+     setspawn:
